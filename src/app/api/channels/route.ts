@@ -15,51 +15,75 @@ const youtube = google.youtube({
 async function resolveChannelId(url: string): Promise<string | null> {
   try {
     const urlObj = new URL(url);
+    console.log('Processing URL:', url);
     
     // Handle different URL formats
     if (urlObj.pathname.startsWith('/channel/')) {
-      return urlObj.pathname.split('/')[2];
+      const channelId = urlObj.pathname.split('/')[2];
+      console.log('Found channel ID in path:', channelId);
+      return channelId;
     }
     
     // Handle custom URLs (@username or /c/username)
     if (urlObj.pathname.startsWith('/c/') || urlObj.pathname.startsWith('/@')) {
       const handle = urlObj.pathname.slice(1); // Remove leading slash
-      console.log('Resolving handle:', handle);
+      console.log('Processing handle:', handle);
       
-      // First try to get channel by handle
-      const response = await youtube.search.list({
+      // Try to get channel directly by handle
+      const response = await youtube.channels.list({
         part: ['snippet'],
-        q: handle,
-        type: ['channel'],
-        maxResults: 1
+        forHandle: handle.startsWith('@') ? handle.slice(1) : handle
       });
 
-      if (response.data.items?.[0]?.snippet?.channelId) {
-        return response.data.items[0].snippet.channelId;
+      console.log('Channel lookup response:', response.data);
+
+      if (response.data.items && response.data.items.length > 0) {
+        const channelId = response.data.items[0].id;
+        if (channelId) {
+          console.log('Found channel ID:', channelId);
+          return channelId;
+        }
       }
       
+      console.log('No channel found for handle:', handle);
       return null;
     }
     
     // Handle youtu.be URLs
     if (urlObj.hostname === 'youtu.be') {
-      return urlObj.pathname.slice(1);
+      const videoId = urlObj.pathname.slice(1);
+      console.log('Processing youtu.be video ID:', videoId);
+      
+      // Get channel ID from video
+      const videoResponse = await youtube.videos.list({
+        part: ['snippet'],
+        id: [videoId]
+      });
+      
+      const channelId = videoResponse.data.items?.[0]?.snippet?.channelId;
+      console.log('Found channel ID from video:', channelId);
+      return channelId || null;
     }
     
     // Handle youtube.com/watch URLs
     if (urlObj.pathname === '/watch') {
       const videoId = urlObj.searchParams.get('v');
       if (videoId) {
+        console.log('Processing watch video ID:', videoId);
+        
         // Get channel ID from video
         const videoResponse = await youtube.videos.list({
           part: ['snippet'],
           id: [videoId]
         });
         
-        return videoResponse.data.items?.[0]?.snippet?.channelId || null;
+        const channelId = videoResponse.data.items?.[0]?.snippet?.channelId;
+        console.log('Found channel ID from video:', channelId);
+        return channelId || null;
       }
     }
     
+    console.log('No matching URL format found');
     return null;
   } catch (error) {
     console.error('Error resolving channel ID:', error);
