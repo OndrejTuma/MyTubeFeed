@@ -30,15 +30,41 @@ export default function VideoFeed({ channels }: VideoFeedProps) {
   const [activeChannel, setActiveChannel] = useState<string | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
+  const [prevPageToken, setPrevPageToken] = useState<string | null>(null);
+  const [isUsingCache, setIsUsingCache] = useState(false);
 
-  const fetchVideos = async () => {
+  const fetchVideos = async (pageToken?: string) => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/videos');
+      const params = new URLSearchParams();
+      if (activeChannel) {
+        params.append('channelId', activeChannel);
+      }
+      if (pageToken) {
+        params.append('pageToken', pageToken);
+      }
+      const response = await fetch(`/api/videos?${params.toString()}`);
       const data = await response.json();
-      setVideos(data);
+      
+      // Always set the videos and cache state, regardless of response status
+      setVideos(data.videos || []);
+      setNextPageToken(data.nextPageToken);
+      setPrevPageToken(data.prevPageToken);
+      setIsUsingCache(data.isCached || false);
+
+      // Only throw error if we don't have any videos and we're not using cache
+      if (!response.ok && !data.isCached) {
+        throw new Error(data.error || 'Failed to fetch videos');
+      }
     } catch (error) {
       console.error('Error fetching videos:', error);
+      // Don't clear videos if we're using cache
+      if (!isUsingCache) {
+        setVideos([]);
+        setNextPageToken(null);
+        setPrevPageToken(null);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -48,7 +74,7 @@ export default function VideoFeed({ channels }: VideoFeedProps) {
     if (session) {
       fetchVideos();
     }
-  }, [session]);
+  }, [session, activeChannel]);
 
   useEffect(() => {
     const handleChannelChange = () => {
@@ -65,6 +91,18 @@ export default function VideoFeed({ channels }: VideoFeedProps) {
 
   return (
     <div className="space-y-6">
+      {isUsingCache && (
+        <div className="bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 p-4 rounded-lg">
+          Showing cached videos due to YouTube API quota limit. New videos will be available when the quota resets.
+        </div>
+      )}
+      
+      {videos.length === 0 && !isLoading && !isUsingCache && (
+        <div className="bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 p-4 rounded-lg">
+          Unable to fetch videos. Please try again later.
+        </div>
+      )}
+
       <div className="flex space-x-2 overflow-x-auto pb-2">
         <button
           onClick={() => setActiveChannel(null)}
@@ -153,6 +191,33 @@ export default function VideoFeed({ channels }: VideoFeedProps) {
           ))
         )}
       </div>
+
+      {(nextPageToken || prevPageToken) && (
+        <div className="flex justify-center space-x-4 mt-6">
+          <button
+            onClick={() => fetchVideos(prevPageToken || undefined)}
+            disabled={!prevPageToken}
+            className={`px-4 py-2 rounded-lg ${
+              prevPageToken
+                ? 'bg-blue-500 text-white hover:bg-blue-600'
+                : 'bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-gray-800 dark:text-gray-400'
+            }`}
+          >
+            Previous
+          </button>
+          <button
+            onClick={() => fetchVideos(nextPageToken || undefined)}
+            disabled={!nextPageToken}
+            className={`px-4 py-2 rounded-lg ${
+              nextPageToken
+                ? 'bg-blue-500 text-white hover:bg-blue-600'
+                : 'bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-gray-800 dark:text-gray-400'
+            }`}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 } 
