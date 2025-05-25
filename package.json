@@ -1,0 +1,51 @@
+{
+  "name": "mytubefeed",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "k8s:start": "minikube start",
+    "k8s:stop": "minikube stop",
+    "k8s:status": "minikube status",
+    "k8s:deploy": "./deploy-local.sh",
+    "k8s:clean": "kubectl delete -f k8s/",
+    "k8s:logs": "kubectl logs -f deployment/mytubefeed",
+    "k8s:logs:db": "kubectl logs -f deployment/mongodb",
+    "k8s:port-forward": "kubectl port-forward svc/mytubefeed 3000:80",
+    "k8s:open": "minikube service mytubefeed --url",
+    "k8s:restart": "npm run k8s:clean && npm run k8s:deploy",
+    "k8s:shell": "kubectl exec -it $(kubectl get pod -l app=mytubefeed -o jsonpath='{.items[0].metadata.name}') -- /bin/sh",
+    "db:start": "docker compose up -d",
+    "db:stop": "docker compose down",
+    "db:logs": "docker compose logs -f mongodb",
+    "db:shell": "docker exec -it mytubefeed-mongodb-1 mongosh",
+    "db:reset": "docker compose down -v && docker compose up -d",
+    "dev:local": "npm run db:start && npm run dev"
+  },
+  "dependencies": {
+    "@auth/mongodb-adapter": "^3.9.1",
+    "axios": "^1.9.0",
+    "googleapis": "^149.0.0",
+    "mongodb": "^6.16.0",
+    "mongoose": "^8.15.0",
+    "next": "15.3.2",
+    "next-auth": "^4.24.11",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-icons": "^5.5.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.3.2",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
