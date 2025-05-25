@@ -95,7 +95,10 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
-      return new NextResponse('Unauthorized', { status: 401 });
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
     const client = await clientPromise;
@@ -108,7 +111,10 @@ export async function GET() {
     return NextResponse.json(channels);
   } catch (error) {
     console.error('Error fetching channels:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch channels' },
+      { status: 500 }
+    );
   }
 }
 
@@ -121,7 +127,10 @@ export async function POST(request: Request) {
     
     if (!session?.user) {
       console.log('No session or user found');
-      return new NextResponse('Unauthorized', { status: 401 });
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
     const body = await request.json();
@@ -130,14 +139,20 @@ export async function POST(request: Request) {
     const { channelUrl } = body;
     if (!channelUrl) {
       console.log('No channelUrl provided');
-      return new NextResponse('Channel URL is required', { status: 400 });
+      return NextResponse.json(
+        { error: 'Channel URL is required' },
+        { status: 400 }
+      );
     }
 
     // Extract channel ID from URL
     const channelId = await resolveChannelId(channelUrl);
     if (!channelId) {
       console.log('Invalid channel URL:', channelUrl);
-      return new NextResponse('Invalid channel URL format', { status: 400 });
+      return NextResponse.json(
+        { error: 'Invalid channel URL format' },
+        { status: 400 }
+      );
     }
 
     console.log('Fetching channel details for ID:', channelId);
@@ -153,7 +168,10 @@ export async function POST(request: Request) {
     const channelData = response.data.items?.[0];
     if (!channelData) {
       console.log('Channel not found in YouTube API response');
-      return new NextResponse('Channel not found', { status: 404 });
+      return NextResponse.json(
+        { error: 'Channel not found' },
+        { status: 404 }
+      );
     }
 
     const channel = {
@@ -172,6 +190,9 @@ export async function POST(request: Request) {
     return NextResponse.json(channel);
   } catch (error) {
     console.error('Error adding channel:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to add channel' },
+      { status: 500 }
+    );
   }
 } 
