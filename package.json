@@ -28,6 +28,7 @@
   "dependencies": {
     "@auth/mongodb-adapter": "^3.9.1",
     "axios": "^1.9.0",
+    "date-fns": "^4.1.0",
     "googleapis": "^149.0.0",
     "mongodb": "^6.16.0",
     "mongoose": "^8.15.0",

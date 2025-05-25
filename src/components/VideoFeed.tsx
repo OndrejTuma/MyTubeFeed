@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
-import { FaYoutube } from 'react-icons/fa';
+import { formatDistanceToNow } from 'date-fns';
 
 interface Video {
   id: string;
@@ -20,59 +20,44 @@ interface Channel {
   thumbnailUrl: string;
 }
 
-export default function VideoFeed() {
+interface VideoFeedProps {
+  channels: Channel[];
+}
+
+export default function VideoFeed({ channels }: VideoFeedProps) {
   const { data: session } = useSession();
   const [videos, setVideos] = useState<Video[]>([]);
-  const [channels, setChannels] = useState<Channel[]>([]);
   const [activeChannel, setActiveChannel] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchVideos = async () => {
     try {
+      setIsLoading(true);
       const response = await fetch('/api/videos');
       const data = await response.json();
       setVideos(data);
     } catch (error) {
       console.error('Error fetching videos:', error);
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchChannels = async () => {
-    try {
-      const response = await fetch('/api/channels');
-      const data = await response.json();
-      setChannels(data);
-    } catch (error) {
-      console.error('Error fetching channels:', error);
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     if (session) {
       fetchVideos();
-      fetchChannels();
     }
   }, [session]);
 
   useEffect(() => {
     const handleChannelChange = () => {
       fetchVideos();
-      fetchChannels();
     };
 
     window.addEventListener('channelChange', handleChannelChange);
     return () => window.removeEventListener('channelChange', handleChannelChange);
   }, []);
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-gray-100"></div>
-      </div>
-    );
-  }
 
   const filteredVideos = activeChannel
     ? videos.filter(video => video.channelId === activeChannel)
@@ -83,19 +68,19 @@ export default function VideoFeed() {
       <div className="flex space-x-2 overflow-x-auto pb-2">
         <button
           onClick={() => setActiveChannel(null)}
-          className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap ${
-            activeChannel === null
+          className={`px-4 py-2 rounded-lg whitespace-nowrap ${
+            !activeChannel
               ? 'bg-blue-500 text-white'
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
           }`}
         >
           All Channels
         </button>
-        {channels.map((channel) => (
+        {channels.map(channel => (
           <button
             key={channel.id}
             onClick={() => setActiveChannel(channel.id)}
-            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-lg whitespace-nowrap flex items-center space-x-2 ${
               activeChannel === channel.id
                 ? 'bg-blue-500 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
@@ -104,43 +89,69 @@ export default function VideoFeed() {
             <Image
               src={channel.thumbnailUrl}
               alt={channel.title}
-              width={20}
-              height={20}
-              className="w-5 h-5 rounded-full"
+              width={24}
+              height={24}
+              className="rounded-full"
             />
-            {channel.title}
+            <span>{channel.title}</span>
           </button>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredVideos.map((video) => (
-          <a
-            key={video.id}
-            href={`https://www.youtube.com/watch?v=${video.id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200 cursor-pointer"
+      {selectedVideo && (
+        <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
+          <button
+            onClick={() => setSelectedVideo(null)}
+            className="absolute top-2 right-2 z-10 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 cursor-pointer"
           >
-            <div className="relative aspect-video">
-              <Image
-                src={video.thumbnailUrl}
-                alt={video.title}
-                fill
-                className="object-cover"
-              />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <iframe
+            src={`https://www.youtube.com/embed/${selectedVideo.id}?autoplay=1`}
+            className="w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {isLoading ? (
+          Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="animate-pulse">
+              <div className="aspect-video bg-gray-200 dark:bg-gray-700 rounded-lg mb-2" />
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2" />
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
             </div>
-            <div className="p-4">
-              <h3 className="font-medium text-gray-900 dark:text-gray-100 line-clamp-2 mb-2">
-                {video.title}
-              </h3>
-              <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                <span>{video.channelTitle}</span>
-                <span>{new Date(video.publishedAt).toLocaleDateString()}</span>
+          ))
+        ) : (
+          filteredVideos.map(video => (
+            <div
+              key={video.id}
+              className="bg-white dark:bg-gray-900 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => setSelectedVideo(video)}
+            >
+              <div className="relative aspect-video">
+                <Image
+                  src={video.thumbnailUrl}
+                  alt={video.title}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+              <div className="p-4">
+                <h3 className="font-medium text-gray-900 dark:text-white mb-1 line-clamp-2">
+                  {video.title}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {video.channelTitle} • {formatDistanceToNow(new Date(video.publishedAt), { addSuffix: true })}
+                </p>
               </div>
             </div>
-          </a>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
