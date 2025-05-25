@@ -10,7 +10,10 @@ export async function DELETE(
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return new NextResponse('Unauthorized', { status: 401 });
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
     const client = await clientPromise;
@@ -21,12 +24,18 @@ export async function DELETE(
     });
 
     if (result.deletedCount === 0) {
-      return new NextResponse('Channel not found', { status: 404 });
+      return NextResponse.json(
+        { error: 'Channel not found' },
+        { status: 404 }
+      );
     }
 
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     console.error('Error deleting channel:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to delete channel' },
+      { status: 500 }
+    );
   }
 } 
