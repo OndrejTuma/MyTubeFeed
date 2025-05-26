@@ -4,7 +4,7 @@ import clientPromise from '@/lib/mongodb';
 import { google } from 'googleapis';
 import { authOptions } from '@/lib/auth';
 
-const CACHE_DURATION = 1000 * 60 * 60; // 1 hour in milliseconds
+const CACHE_DURATION = parseInt(process.env.VIDEO_CACHE_DURATION || '3600000'); // Default to 1 hour (3600000 ms)
 
 const youtube = google.youtube({
   version: 'v3',
@@ -21,6 +21,24 @@ interface Video {
   publishedAt: string;
   channelTitle: string;
   channelId: string;
+}
+
+interface YouTubeError {
+  errors?: Array<{
+    domain?: string;
+    reason?: string;
+    message?: string;
+  }>;
+  message?: string;
+}
+
+function isQuotaExceededError(error: unknown): boolean {
+  if (error instanceof Error) {
+    return error.message.includes('quota') || error.message.includes('quotaExceeded');
+  }
+  
+  const youtubeError = error as YouTubeError;
+  return youtubeError?.errors?.[0]?.reason === 'quotaExceeded';
 }
 
 export async function GET(request: Request) {
@@ -57,10 +75,25 @@ export async function GET(request: Request) {
       );
     }
 
-    const videos: Video[] = [];
+    // First, try to get videos from cache
+    const cachedData = await db.collection('cached_videos').findOne({
+      channelId,
+      pageToken: pageToken || null,
+      lastUpdated: { $gte: new Date(Date.now() - CACHE_DURATION) }
+    });
 
+    // If we have valid cached data, return it
+    if (cachedData) {
+      return NextResponse.json({
+        videos: cachedData.videos,
+        nextPageToken: cachedData.nextPageToken,
+        prevPageToken: cachedData.prevPageToken,
+        isCached: true
+      });
+    }
+
+    // If no valid cache exists, fetch from YouTube API
     try {
-      // Try to fetch from YouTube API first
       const response = await youtube.search.list({
         part: ['snippet'],
         channelId,
@@ -88,47 +121,46 @@ export async function GET(request: Request) {
           !!video.channelId
         ) || [];
 
-      // Cache the videos
+      // Cache the videos with the current page token
       await db.collection('cached_videos').updateOne(
-        { channelId },
+        { 
+          channelId,
+          pageToken: pageToken || null
+        },
         { $set: { 
           videos: channelVideos,
           lastUpdated: new Date(),
-          pageToken,
           nextPageToken: response.data.nextPageToken,
           prevPageToken: response.data.prevPageToken
         }},
         { upsert: true }
       );
 
-      videos.push(...channelVideos);
-
       return NextResponse.json({
-        videos,
+        videos: channelVideos,
         nextPageToken: response.data.nextPageToken || null,
         prevPageToken: response.data.prevPageToken || null,
+        isCached: false
       });
     } catch (error: unknown) {
-      // Check if it's a quota exceeded error
-      const isQuotaExceeded = error instanceof Error && 
-        (error.message.includes('quota') || 
-         error.message.includes('quotaExceeded') ||
-         (error as any)?.errors?.[0]?.reason === 'quotaExceeded');
-
-      if (isQuotaExceeded) {
-        console.log('YouTube API quota exceeded, falling back to cached videos');
+      if (isQuotaExceededError(error)) {
+        console.log('YouTube API quota exceeded, trying to get any cached data');
         
-        const cachedData = await db.collection('cached_videos').findOne({
+        // Try to get any cached data for this channel, even if it's expired
+        const anyCachedData = await db.collection('cached_videos').findOne({
           channelId,
-          lastUpdated: { $gte: new Date(Date.now() - CACHE_DURATION) }
+          pageToken: pageToken || null
         });
 
-        return NextResponse.json({
-          videos: cachedData?.videos ?? [],
-          nextPageToken: cachedData?.nextPageToken ?? null,
-          prevPageToken: cachedData?.prevPageToken ?? null,
-          isCached: true
-        });
+        if (anyCachedData) {
+          return NextResponse.json({
+            videos: anyCachedData.videos,
+            nextPageToken: anyCachedData.nextPageToken,
+            prevPageToken: anyCachedData.prevPageToken,
+            isCached: true,
+            isExpired: true
+          });
+        }
       }
 
       // For other errors or if no cache is available
