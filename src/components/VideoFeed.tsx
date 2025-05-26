@@ -116,7 +116,7 @@ export default function VideoFeed({ channels: initialChannels }: VideoFeedProps)
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex-1 min-w-0">
-          <div className="flex space-x-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
+          <div className="flex space-x-2 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
             {channels.map(channel => (
               <button
                 key={channel.id}
