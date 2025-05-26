@@ -90,7 +90,8 @@ export default function ChannelManager() {
     }
   };
 
-  const handleRemoveChannel = async (channelId: string) => {
+  const handleRemoveChannel = async (channelId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the channel click
     setIsRemovingChannel(channelId);
     try {
       const response = await fetch(`/api/channels/${channelId}`, {
@@ -117,6 +118,12 @@ export default function ChannelManager() {
     } finally {
       setIsRemovingChannel(null);
     }
+  };
+
+  const handleChannelClick = (channelId: string) => {
+    // Dispatch a custom event with the channel ID
+    const event = new CustomEvent('channelSelect', { detail: { channelId } });
+    window.dispatchEvent(event);
   };
 
   if (loading) {
@@ -167,7 +174,11 @@ export default function ChannelManager() {
 
       <div className="space-y-4">
         {channels.map((channel) => (
-          <div key={channel.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <div
+            key={channel.id}
+            onClick={() => handleChannelClick(channel.id)}
+            className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
             <div className="flex items-center gap-3 min-w-0">
               <Image
                 src={channel.thumbnailUrl}
@@ -179,7 +190,7 @@ export default function ChannelManager() {
               <span className="font-medium dark:text-gray-100 truncate">{channel.title}</span>
             </div>
             <button
-              onClick={() => handleRemoveChannel(channel.id)}
+              onClick={(e) => handleRemoveChannel(channel.id, e)}
               disabled={isRemovingChannel === channel.id}
               className={`p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full cursor-pointer flex-shrink-0 ml-2 ${
                 isRemovingChannel === channel.id ? 'opacity-50 cursor-not-allowed' : ''

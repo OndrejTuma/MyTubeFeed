@@ -99,8 +99,17 @@ export default function VideoFeed({ channels: initialChannels }: VideoFeedProps)
       fetchChannels();
     };
 
+    const handleChannelSelect = (event: CustomEvent<{ channelId: string }>) => {
+      setActiveChannel(event.detail.channelId);
+    };
+
     window.addEventListener('channelChange', handleChannelChange);
-    return () => window.removeEventListener('channelChange', handleChannelChange);
+    window.addEventListener('channelSelect', handleChannelSelect as EventListener);
+    
+    return () => {
+      window.removeEventListener('channelChange', handleChannelChange);
+      window.removeEventListener('channelSelect', handleChannelSelect as EventListener);
+    };
   }, []);
 
   return (
