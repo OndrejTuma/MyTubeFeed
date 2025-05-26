@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
 import VideoFeed from '@/components/VideoFeed';
 import ChannelManager from '@/components/ChannelManager';
+import Header from '@/components/Header';
 import clientPromise from '@/lib/mongodb';
 
 export default async function Home() {
@@ -26,6 +27,7 @@ export default async function Home() {
 
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <Header />
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           <div className="lg:col-span-3">

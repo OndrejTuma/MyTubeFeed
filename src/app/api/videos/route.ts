@@ -5,6 +5,7 @@ import { google } from 'googleapis';
 import { authOptions } from '@/lib/auth';
 
 const CACHE_DURATION = parseInt(process.env.VIDEO_CACHE_DURATION || '3600000'); // Default to 1 hour (3600000 ms)
+const VIDEOS_PER_PAGE = parseInt(process.env.VIDEOS_PER_PAGE || '12');
 
 const youtube = google.youtube({
   version: 'v3',
@@ -85,7 +86,7 @@ export async function GET(request: Request) {
     // If we have valid cached data, return it
     if (cachedData) {
       return NextResponse.json({
-        videos: cachedData.videos,
+        videos: cachedData.videos.slice(0, VIDEOS_PER_PAGE),
         nextPageToken: cachedData.nextPageToken,
         prevPageToken: cachedData.prevPageToken,
         isCached: true
@@ -99,7 +100,7 @@ export async function GET(request: Request) {
         channelId,
         order: 'date',
         type: ['video'],
-        maxResults: 50,
+        maxResults: VIDEOS_PER_PAGE,
         pageToken: pageToken || undefined,
       });
 
@@ -154,7 +155,7 @@ export async function GET(request: Request) {
 
         if (anyCachedData) {
           return NextResponse.json({
-            videos: anyCachedData.videos,
+            videos: anyCachedData.videos.slice(0, VIDEOS_PER_PAGE),
             nextPageToken: anyCachedData.nextPageToken,
             prevPageToken: anyCachedData.prevPageToken,
             isCached: true,
