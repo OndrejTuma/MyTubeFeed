@@ -27,7 +27,7 @@ interface VideoFeedProps {
 export default function VideoFeed({ channels }: VideoFeedProps) {
   const { data: session } = useSession();
   const [videos, setVideos] = useState<Video[]>([]);
-  const [activeChannel, setActiveChannel] = useState<string | null>(null);
+  const [activeChannel, setActiveChannel] = useState<string | null>(channels[0]?.id || null);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
@@ -35,12 +35,12 @@ export default function VideoFeed({ channels }: VideoFeedProps) {
   const [isUsingCache, setIsUsingCache] = useState(false);
 
   const fetchVideos = async (pageToken?: string) => {
+    if (!activeChannel) return;
+    
     try {
       setIsLoading(true);
       const params = new URLSearchParams();
-      if (activeChannel) {
-        params.append('channelId', activeChannel);
-      }
+      params.append('channelId', activeChannel);
       if (pageToken) {
         params.append('pageToken', pageToken);
       }
@@ -71,23 +71,21 @@ export default function VideoFeed({ channels }: VideoFeedProps) {
   };
 
   useEffect(() => {
-    if (session) {
+    if (session && activeChannel) {
       fetchVideos();
     }
   }, [session, activeChannel]);
 
   useEffect(() => {
     const handleChannelChange = () => {
-      fetchVideos();
+      if (activeChannel) {
+        fetchVideos();
+      }
     };
 
     window.addEventListener('channelChange', handleChannelChange);
     return () => window.removeEventListener('channelChange', handleChannelChange);
-  }, []);
-
-  const filteredVideos = activeChannel
-    ? videos.filter(video => video.channelId === activeChannel)
-    : videos;
+  }, [activeChannel]);
 
   return (
     <div className="space-y-6">
@@ -104,16 +102,6 @@ export default function VideoFeed({ channels }: VideoFeedProps) {
       )}
 
       <div className="flex space-x-2 overflow-x-auto pb-2">
-        <button
-          onClick={() => setActiveChannel(null)}
-          className={`px-4 py-2 rounded-lg whitespace-nowrap ${
-            !activeChannel
-              ? 'bg-blue-500 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
-          }`}
-        >
-          All Channels
-        </button>
         {channels.map(channel => (
           <button
             key={channel.id}
@@ -165,7 +153,7 @@ export default function VideoFeed({ channels }: VideoFeedProps) {
             </div>
           ))
         ) : (
-          filteredVideos.map(video => (
+          videos.map(video => (
             <div
               key={video.id}
               className="bg-white dark:bg-gray-900 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer"

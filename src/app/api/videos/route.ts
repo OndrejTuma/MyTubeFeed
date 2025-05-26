@@ -23,11 +23,6 @@ interface Video {
   channelId: string;
 }
 
-interface YouTubeError {
-  code?: number;
-  message?: string;
-}
-
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -42,21 +37,33 @@ export async function GET(request: Request) {
     const pageToken = searchParams.get('pageToken') || '';
     const channelId = searchParams.get('channelId');
 
+    if (!channelId) {
+      return NextResponse.json(
+        { error: 'Channel ID is required' },
+        { status: 400 }
+      );
+    }
+
     const client = await clientPromise;
     const db = client.db();
-    const channels = await db
+    const channel = await db
       .collection('channels')
-      .find({ userId: session.user.id })
-      .toArray();
+      .findOne({ userId: session.user.id, id: channelId });
 
-    const channelIds = channelId ? [channelId] : channels.map(channel => channel.id);
+    if (!channel) {
+      return NextResponse.json(
+        { error: 'Channel not found' },
+        { status: 404 }
+      );
+    }
+
     const videos: Video[] = [];
 
     try {
       // Try to fetch from YouTube API first
       const response = await youtube.search.list({
         part: ['snippet'],
-        channelId: channelIds.join(','),
+        channelId,
         order: 'date',
         type: ['video'],
         maxResults: 50,
@@ -82,8 +89,8 @@ export async function GET(request: Request) {
         ) || [];
 
       // Cache the videos
-      await db.collection('cached_videos').updateMany(
-        { channelId: { $in: channelIds } },
+      await db.collection('cached_videos').updateOne(
+        { channelId },
         { $set: { 
           videos: channelVideos,
           lastUpdated: new Date(),
@@ -112,7 +119,7 @@ export async function GET(request: Request) {
         console.log('YouTube API quota exceeded, falling back to cached videos');
         
         const cachedData = await db.collection('cached_videos').findOne({
-          channelId: { $in: channelIds },
+          channelId,
           lastUpdated: { $gte: new Date(Date.now() - CACHE_DURATION) }
         });
 
