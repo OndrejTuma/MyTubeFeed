@@ -5,8 +5,9 @@ import { authOptions } from '@/lib/auth';
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: { channelId: string } }
+  context: { params: Promise<{ channelId: string }> }
 ) {
+  const { channelId } = await context.params;
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -19,7 +20,7 @@ export async function DELETE(
     const client = await clientPromise;
     const db = client.db();
     const result = await db.collection('channels').deleteOne({
-      id: context.params.channelId,
+      id: channelId,
       userId: session.user.id,
     });
 

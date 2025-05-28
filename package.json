@@ -18,12 +18,17 @@
     "k8s:open": "minikube service mytubefeed --url",
     "k8s:restart": "npm run k8s:clean && npm run k8s:deploy",
     "k8s:shell": "kubectl exec -it $(kubectl get pod -l app=mytubefeed -o jsonpath='{.items[0].metadata.name}') -- /bin/sh",
-    "db:start": "docker compose up -d",
-    "db:stop": "docker compose down",
-    "db:logs": "docker compose logs -f mongodb",
+    "db:start": "docker compose -f docker-compose.dev.yml up -d",
+    "db:stop": "docker compose -f docker-compose.dev.yml down",
+    "db:logs": "docker compose -f docker-compose.dev.yml logs -f mongodb",
     "db:shell": "docker exec -it mytubefeed-mongodb-1 mongosh",
-    "db:reset": "docker compose down -v && docker compose up -d",
-    "dev:local": "npm run db:start && npm run dev"
+    "db:reset": "docker compose -f docker-compose.dev.yml down -v && docker compose -f docker-compose.dev.yml up -d",
+    "dev:local": "npm run db:start && npm run dev",
+    "prod:up": "docker compose up -d",
+    "prod:down": "docker compose down",
+    "prod:logs": "docker compose logs -f",
+    "prod:restart": "docker compose restart",
+    "prod:rebuild": "docker compose up -d --build"
   },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.9.1",

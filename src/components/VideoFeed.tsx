@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
@@ -37,7 +37,7 @@ export default function VideoFeed({ channels: initialChannels }: VideoFeedProps)
   const [isUsingCache, setIsUsingCache] = useState(false);
   const [isExpired, setIsExpired] = useState(false);
 
-  const fetchChannels = async () => {
+  const fetchChannels = useCallback(async () => {
     try {
       const response = await fetch('/api/channels');
       if (!response.ok) {
@@ -45,16 +45,15 @@ export default function VideoFeed({ channels: initialChannels }: VideoFeedProps)
       }
       const data = await response.json();
       setChannels(data);
-      // If there's no active channel or the active channel was removed, set the first channel as active
       if (!activeChannel || !data.find((c: Channel) => c.id === activeChannel)) {
         setActiveChannel(data[0]?.id || null);
       }
     } catch (error) {
       console.error('Error fetching channels:', error);
     }
-  };
+  }, [activeChannel]);
 
-  const fetchVideos = async (pageToken?: string) => {
+  const fetchVideos = useCallback(async (pageToken?: string) => {
     if (!activeChannel) return;
     
     try {
@@ -86,13 +85,13 @@ export default function VideoFeed({ channels: initialChannels }: VideoFeedProps)
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [activeChannel, isUsingCache]);
 
   useEffect(() => {
     if (session && activeChannel) {
       fetchVideos();
     }
-  }, [session, activeChannel]);
+  }, [session, activeChannel, fetchVideos]);
 
   useEffect(() => {
     const handleChannelChange = () => {
@@ -110,7 +109,7 @@ export default function VideoFeed({ channels: initialChannels }: VideoFeedProps)
       window.removeEventListener('channelChange', handleChannelChange);
       window.removeEventListener('channelSelect', handleChannelSelect as EventListener);
     };
-  }, []);
+  }, [fetchChannels]);
 
   return (
     <div className="space-y-6">
