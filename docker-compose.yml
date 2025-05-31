@@ -2,11 +2,7 @@ version: '3.3'
 
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - NODE_OPTIONS=--max-old-space-size=2048
+    image: mytubefeed-app:latest
     ports:
       - "99:99"
     environment:
